@@ -1,6 +1,7 @@
+import logging
 import os
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 from sqlalchemy import text
 from werkzeug.exceptions import HTTPException
@@ -8,12 +9,18 @@ from werkzeug.exceptions import HTTPException
 from app.config import CONFIGS
 from app.errores import ErrorAPI
 from app.extensions import db
+from app.monitoreo import iniciar_sentry
 
 
 def create_app(config_name=None):
     """App factory: crea la app con la configuración indicada ("dev", "test" o "prod")."""
     config_name = config_name or os.getenv("FLASK_CONFIG", "dev")
+    if config_name != "test":
+        # Sentry debe iniciar antes de crear la app para engancharse a Flask.
+        iniciar_sentry()
+
     app = Flask(__name__)
+    app.logger.setLevel(logging.INFO)
     app.config.from_object(CONFIGS[config_name])
 
     db.init_app(app)
@@ -47,6 +54,8 @@ def _registrar_blueprints(app):
 def _registrar_errores(app):
     @app.errorhandler(ErrorAPI)
     def error_api(e):
+        # Las reglas de negocio rechazadas quedan como mensajes (logs) en Sentry.
+        app.logger.warning("%s %s rechazado (%s): %s", request.method, request.path, e.codigo, e.mensaje)
         return jsonify(error=e.mensaje), e.codigo
 
     @app.errorhandler(HTTPException)
@@ -56,5 +65,6 @@ def _registrar_errores(app):
 
     @app.errorhandler(Exception)
     def error_interno(e):
-        app.logger.exception("Error no controlado")
+        # Nivel ERROR: además del log, Sentry crea un Issue con el stack trace.
+        app.logger.exception("Error no controlado en %s %s", request.method, request.path)
         return jsonify(error="Error interno del servidor"), 500

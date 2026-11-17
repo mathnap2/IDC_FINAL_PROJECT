@@ -27,6 +27,10 @@ flake8
 | `DATABASE_URL` | Cadena de conexión, p. ej. `postgresql://usuario:clave@host:5432/db_dev` |
 | `SECRET_KEY` | Llave de Flask |
 | `CORS_ORIGINS` | Orígenes permitidos del frontend, separados por coma (por defecto `*`) |
+| `SENTRY_DSN` | Proyecto `cuentas-claras-server` en Sentry; sin esta variable Sentry no se activa |
+| `SENTRY_ENVIRONMENT` | `dev` o `prod` (lo pone Terraform) |
+| `SENTRY_RELEASE` | Opcional: versión o sha del commit que se despliega |
+| `SENTRY_TRACES_SAMPLE_RATE` | Opcional: porcentaje de trazas (por defecto `1.0`) |
 
 ## Convenciones
 
@@ -36,3 +40,12 @@ flake8
 - Dinero con `Numeric(10, 2)` y `Decimal`; en JSON se envía como texto (`"33.34"`). Fechas ISO 8601.
 - Cada componente registra su blueprint en `_registrar_blueprints` de `app/__init__.py`.
 - Gunicorn debe usar `--preload` para que las tablas se creen una sola vez al arrancar.
+
+## Monitoreo (APM con Sentry)
+
+`app/monitoreo.py` inicia Sentry antes de crear la app (solo si existe `SENTRY_DSN`):
+
+- **Errores (Issues):** cualquier excepción no controlada responde 500 y se registra con nivel ERROR,
+  lo que crea un Issue con el stack trace.
+- **Trazas:** cada request queda como una traza; si viene del frontend, la traza continúa desde el navegador.
+- **Mensajes (Logs):** las reglas de negocio rechazadas (400, 404, 409) se registran como WARNING.
