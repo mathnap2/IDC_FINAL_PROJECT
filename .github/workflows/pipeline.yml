@@ -85,6 +85,33 @@ jobs:
           name: reporte-pruebas-unitarias
           path: test-results/
 
+  imagen:
+    name: Construir y probar la imagen
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Construir imagen
+        run: docker build -t cc-api:ci .
+
+      - name: Prueba de humo del contenedor
+        run: |
+          # SQLite dentro del contenedor: solo se prueba que la imagen arranca y responde.
+          docker run -d --name api -p 8000:8000 \
+            -e DATABASE_URL=sqlite:////tmp/ci.db -e SECRET_KEY=ci cc-api:ci
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:8000/health; then echo; break; fi
+            sleep 1
+          done
+          curl -fsS http://localhost:8000/health | grep -q '"status":"ok"'
+          test "$(docker exec api id -u)" != "0" || { echo "El contenedor corre como root"; exit 1; }
+          echo "Imagen OK"
+
+      - name: Logs del contenedor
+        if: always()
+        run: docker logs api || true
+
   build:
     name: Build y push a Docker Hub
     needs: ci
