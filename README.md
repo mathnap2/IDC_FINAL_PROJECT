@@ -12,6 +12,18 @@ flask --app wsgi run          # usa FLASK_CONFIG=prod por defecto; para SQLite l
 FLASK_CONFIG=dev flask --app wsgi run
 ```
 
+## Correr con Docker
+
+```bash
+docker compose up --build              # API en http://localhost:8000 + PostgreSQL 16
+curl http://localhost:8000/health
+```
+
+La imagen (`Dockerfile`) es multi-stage sobre `python:3.12-slim`: la primera etapa instala las dependencias en
+un entorno virtual y la segunda solo copia ese entorno y el código. Corre como usuario sin privilegios con
+Gunicorn en el puerto 8000 (`PORT`) y `--preload`. El número de workers se cambia con `GUNICORN_WORKERS`
+(por defecto 2, suficiente para el plan F1 de Azure).
+
 ## Pruebas y lint
 
 ```bash
