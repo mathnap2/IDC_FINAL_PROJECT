@@ -117,8 +117,6 @@ jobs:
     needs: ci
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
-    outputs:
-      imagen: ${{ steps.tags.outputs.imagen }}
     steps:
       - uses: actions/checkout@v4
 
@@ -176,7 +174,9 @@ jobs:
       - uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ env.WEBAPP_DEV }}
-          images: docker.io/${{ needs.build.outputs.imagen }}
+          # El nombre se arma aquí y no se recibe del job build: GitHub descarta los outputs que
+          # contienen el valor de un secret, y la imagen incluye DOCKERHUB_USERNAME (mathnap2).
+          images: docker.io/${{ env.IMAGEN }}:sha-${{ github.sha }}
 
   uat:
     name: Pruebas UAT contra dev
@@ -195,9 +195,16 @@ jobs:
         run: pip install -r requirements-dev.txt
 
       - name: Esperar a que dev arranque la nueva imagen
-        # Azure tarda en descargar la imagen y reiniciar el contenedor; mientras tanto sigue
-        # respondiendo el contenedor anterior.
-        run: sleep 60
+        # Azure tarda en descargar la imagen y reiniciar el contenedor (más en el plan F1 y la
+        # primera vez). Se espera un minuto y luego hasta 5 minutos más a que /health responda.
+        run: |
+          sleep 60
+          url="https://$WEBAPP_DEV.azurewebsites.net/health"
+          for i in $(seq 1 30); do
+            if curl -fsS --max-time 30 "$url"; then echo; echo "Dev responde"; exit 0; fi
+            echo "Intento $i: todavía no responde, reintento en 10 s"; sleep 10
+          done
+          echo "Dev no respondió en 6 minutos"; exit 1
 
       - name: Pruebas UAT
         env:
@@ -252,7 +259,9 @@ jobs:
       - uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ env.WEBAPP_PROD }}
-          images: docker.io/${{ needs.build.outputs.imagen }}
+          # El nombre se arma aquí y no se recibe del job build: GitHub descarta los outputs que
+          # contienen el valor de un secret, y la imagen incluye DOCKERHUB_USERNAME (mathnap2).
+          images: docker.io/${{ env.IMAGEN }}:sha-${{ github.sha }}
 
       - name: Verificar /health en producción
         run: |
