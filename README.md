@@ -2,6 +2,11 @@
 
 API REST en Flask para registrar gastos compartidos en grupos, pagos entre miembros y calcular saldos.
 
+> 📋 **Tablero del proyecto:** [Cuentas Claras](https://github.com/users/angelcortes1705/projects/3)
+> · Repos: [backend](https://github.com/mathnap2/IDC_FINAL_PROJECT)
+> · [frontend](https://github.com/mathnap2/IDC_FINAL_PROJECT_FRONTEND)
+> · [infraestructura](https://github.com/mathnap2/IDC_FINAL_PROJECT_TERRAFORM)
+
 ## Correr en local
 
 ```bash
