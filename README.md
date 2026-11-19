@@ -36,6 +36,28 @@ pytest          # incluye reporte de cobertura (pytest.ini)
 flake8
 ```
 
+## Pruebas UAT
+
+`uat/` contiene pruebas de aceptación que hablan con una API desplegada por HTTP y borran lo que crean:
+
+```bash
+UAT_BASE_URL=http://localhost:8000 pytest uat -o addopts=""
+```
+
+## Pipeline (GitHub Actions)
+
+`.github/workflows/pipeline.yml`:
+
+| Evento | Jobs |
+|---|---|
+| PR a `develop` o `main` | `ci`: flake8, pytest con cobertura ≥ 80 % y reportes (artefacto + resumen) |
+| Push a `develop` | `ci` → `build` (`:dev` y `:sha-<commit>`) → `deploy-dev` → `uat` contra dev |
+| Push a `main` | `ci` → `build` (`:latest` y `:sha-<commit>`) → `deploy-prod` (espera aprobación del environment `production`) |
+
+La imagen se publica en Docker Hub como `mathnap2/cuentas-claras` y se despliega la etiqueta `:sha-<commit>`
+para saber exactamente qué versión corre en cada ambiente. El login a Azure es por OIDC (sin contraseñas).
+Si cambian los nombres de las Web Apps, se actualizan en `env:` al inicio del workflow.
+
 ## Variables de entorno
 
 | Variable | Uso |
