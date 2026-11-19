@@ -53,6 +53,22 @@ flake8
 - Cada componente registra su blueprint en `_registrar_blueprints` de `app/__init__.py`.
 - Gunicorn debe usar `--preload` para que las tablas se creen una sola vez al arrancar.
 
+## Pagos y saldos
+
+| Operación | Petición | Cuerpo / respuesta |
+|---|---|---|
+| Registrar pago | `POST /api/grupos/<id>/pagos` | `{de_usuario, a_usuario, monto, fecha?}` (fecha `AAAA-MM-DD`, por defecto hoy) |
+| Listar pagos del grupo | `GET /api/grupos/<id>/pagos` | ordenados por fecha |
+| Ver / editar / eliminar pago | `GET` / `PUT` / `DELETE /api/pagos/<id>` | `PUT` acepta los mismos campos, todos opcionales |
+| Saldos | `GET /api/grupos/<id>/saldos` | `[{usuario_id, nombre, saldo}]` |
+| Deudas simplificadas | `GET /api/grupos/<id>/deudas-simplificadas` | `[{de_usuario, a_usuario, monto}]` |
+
+Reglas: el monto es mayor a 0 y con máximo 2 decimales; no se puede pagar a uno mismo; quien paga y
+quien recibe son miembros del grupo. El saldo es positivo si al miembro le deben y negativo si debe, y los
+saldos de un grupo siempre suman 0. Las deudas simplificadas se calculan con un algoritmo voraz (quien más
+debe le paga a quien más le deben), que deja a todos en 0 con a lo más n − 1 transferencias: por ejemplo,
+A→B 100 y B→C 100 queda en A→C 100.
+
 ## Monitoreo (APM con Sentry)
 
 `app/monitoreo.py` inicia Sentry antes de crear la app (solo si existe `SENTRY_DSN`):
