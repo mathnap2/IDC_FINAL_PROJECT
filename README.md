@@ -80,6 +80,22 @@ Si cambian los nombres de las Web Apps, se actualizan en `env:` al inicio del wo
 - Cada componente registra su blueprint en `_registrar_blueprints` de `app/__init__.py`.
 - Gunicorn debe usar `--preload` para que las tablas se creen una sola vez al arrancar.
 
+## Gastos
+
+| Operación | Petición | Cuerpo / respuesta |
+|---|---|---|
+| Registrar gasto | `POST /api/grupos/<id>/gastos` | `{descripcion, monto, pagado_por, participantes, tipo_division?, fecha?}` |
+| Listar gastos del grupo | `GET /api/grupos/<id>/gastos` | ordenados por fecha e id |
+| Ver / editar / eliminar gasto | `GET` / `PUT` / `DELETE /api/gastos/<id>` | `PUT` acepta los mismos campos, todos opcionales, y vuelve a dividir |
+
+`participantes` es una lista `[{usuario_id, valor}]`; `valor` es el porcentaje (`porcentaje`), el monto
+(`montos`) o se ignora (`iguales`, el valor por defecto). La fecha es `AAAA-MM-DD` y por defecto es hoy.
+
+Reglas: el monto es mayor a 0 con máximo 2 decimales; la descripción es obligatoria; quien pagó y los
+participantes son miembros del grupo y no se repiten. En `iguales` los centavos sobrantes van a los primeros
+participantes (100 entre 3 = 33.34 + 33.33 + 33.33); los porcentajes deben sumar 100 y los montos deben sumar
+el total. Las divisiones de un gasto siempre suman exactamente su monto, por eso los saldos cuadran.
+
 ## Pagos y saldos
 
 | Operación | Petición | Cuerpo / respuesta |
