@@ -43,12 +43,14 @@ def create_app(config_name=None):
 
 
 def _registrar_blueprints(app):
+    from app.routes.gastos import bp as gastos_bp
     from app.routes.grupos import bp as grupos_bp
     from app.routes.pagos import bp as pagos_bp
     from app.routes.usuarios import bp as usuarios_bp
 
     app.register_blueprint(usuarios_bp)
     app.register_blueprint(grupos_bp)
+    app.register_blueprint(gastos_bp)
     app.register_blueprint(pagos_bp)
     # Cada integrante registra aquí su blueprint (grupos, gastos, pagos).
 
