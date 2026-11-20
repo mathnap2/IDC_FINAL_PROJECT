@@ -1,0 +1,80 @@
+import logging
+import os
+
+from flask import Flask, jsonify, request
+from flask_cors import CORS
+from sqlalchemy import text
+from werkzeug.exceptions import HTTPException
+
+from app.config import CONFIGS
+from app.errores import ErrorAPI
+from app.extensions import db
+from app.monitoreo import iniciar_sentry
+
+
+def create_app(config_name=None):
+    """App factory: crea la app con la configuración indicada ("dev", "test" o "prod")."""
+    config_name = config_name or os.getenv("FLASK_CONFIG", "dev")
+    if config_name != "test":
+        # Sentry debe iniciar antes de crear la app para engancharse a Flask.
+        iniciar_sentry()
+
+    app = Flask(__name__)
+    app.logger.setLevel(logging.INFO)
+    app.config.from_object(CONFIGS[config_name])
+
+    db.init_app(app)
+    CORS(app, resources={r"/api/*": {"origins": app.config["CORS_ORIGINS"].split(",")}})
+
+    _registrar_blueprints(app)
+    _registrar_errores(app)
+
+    @app.get("/health")
+    def health():
+        # Azure usa este endpoint para saber si el contenedor está vivo.
+        db.session.execute(text("SELECT 1"))
+        return {"status": "ok"}
+
+    with app.app_context():
+        from app import models  # noqa: F401  (registra las tablas en db.metadata)
+        db.create_all()
+        # Gunicorn usa --preload: este proceso crea las tablas y luego se divide en workers. Se cierran
+        # las conexiones abiertas aquí para que cada worker abra las suyas (una conexión heredada
+        # entre procesos termina en "server closed the connection unexpectedly"). En SQLite en memoria
+        # (pruebas) no se hace, porque cerrar la conexión borraría la base.
+        if db.engine.dialect.name != "sqlite":
+            db.engine.dispose()
+
+    return app
+
+
+def _registrar_blueprints(app):
+    from app.routes.gastos import bp as gastos_bp
+    from app.routes.grupos import bp as grupos_bp
+    from app.routes.pagos import bp as pagos_bp
+    from app.routes.usuarios import bp as usuarios_bp
+
+    app.register_blueprint(usuarios_bp)
+    app.register_blueprint(grupos_bp)
+    app.register_blueprint(gastos_bp)
+    app.register_blueprint(pagos_bp)
+    # Cada integrante registra aquí su blueprint (grupos, gastos, pagos).
+
+
+def _registrar_errores(app):
+    @app.errorhandler(ErrorAPI)
+    def error_api(e):
+        # Las reglas de negocio rechazadas quedan como mensajes (logs) en Sentry.
+        app.logger.warning("%s %s rechazado (%s): %s", request.method, request.path, e.codigo, e.mensaje)
+        return jsonify(error=e.mensaje), e.codigo
+
+    @app.errorhandler(HTTPException)
+    def error_http(e):
+        mensajes = {404: "Recurso no encontrado", 405: "Método no permitido"}
+        return jsonify(error=mensajes.get(e.code, e.description)), e.code
+
+    @app.errorhandler(Exception)
+    def error_interno(e):
+        # Nivel ERROR: además del log, Sentry crea un Issue con el stack trace.
+        app.logger.exception("Error no controlado en %s %s", request.method, request.path)
+        return jsonify(error="Error interno del servidor"), 500

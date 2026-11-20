@@ -1,0 +1,35 @@
+# Desarrollo local: API + PostgreSQL, igual que en Azure.
+#   docker compose up --build
+#   curl http://localhost:8000/health
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ccadmin
+      POSTGRES_PASSWORD: ccadmin
+      POSTGRES_DB: db_local
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ccadmin -d db_local"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: .
+    environment:
+      FLASK_CONFIG: prod
+      DATABASE_URL: postgresql://ccadmin:ccadmin@db:5432/db_local
+      SECRET_KEY: solo-para-desarrollo-local
+      CORS_ORIGINS: "*"
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
