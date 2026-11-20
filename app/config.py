@@ -19,6 +19,8 @@ class Config:
 
     SECRET_KEY = os.getenv("SECRET_KEY", "solo-para-desarrollo")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    # Revisa que la conexión siga viva antes de usarla (Azure/PostgreSQL cierran conexiones inactivas).
+    SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True}
     # Orígenes permitidos para el frontend (separados por coma). "*" = cualquiera.
     CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*")
 
@@ -31,6 +33,7 @@ class DevConfig(Config):
 class TestConfig(Config):
     TESTING = True
     SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
+    SQLALCHEMY_ENGINE_OPTIONS = {}
 
 
 class ProdConfig(Config):

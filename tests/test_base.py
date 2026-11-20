@@ -62,3 +62,9 @@ def test_create_engine_postgres_no_requiere_psycopg3():
 
     motor = sqlalchemy.create_engine(url_base_de_datos("postgresql://u:p@localhost:5432/db"))
     assert motor.dialect.driver == "psycopg2"
+
+
+def test_produccion_revisa_conexiones_antes_de_usarlas():
+    from app.config import ProdConfig
+
+    assert ProdConfig.SQLALCHEMY_ENGINE_OPTIONS["pool_pre_ping"] is True
