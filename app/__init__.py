@@ -38,6 +38,12 @@ def create_app(config_name=None):
     with app.app_context():
         from app import models  # noqa: F401  (registra las tablas en db.metadata)
         db.create_all()
+        # Gunicorn usa --preload: este proceso crea las tablas y luego se divide en workers. Se cierran
+        # las conexiones abiertas aquí para que cada worker abra las suyas (una conexión heredada
+        # entre procesos termina en "server closed the connection unexpectedly"). En SQLite en memoria
+        # (pruebas) no se hace, porque cerrar la conexión borraría la base.
+        if db.engine.dialect.name != "sqlite":
+            db.engine.dispose()
 
     return app
 
