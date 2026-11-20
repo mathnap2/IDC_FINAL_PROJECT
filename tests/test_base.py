@@ -43,3 +43,22 @@ def test_modelos_y_relaciones(usuarios):
     assert Gasto.query.count() == 0
     assert Division.query.count() == 0
     assert Pago.query.count() == 0
+
+
+def test_url_postgres_usa_psycopg2():
+    from app.config import url_base_de_datos
+
+    assert url_base_de_datos("postgresql://u:p@h:5432/db") == "postgresql+psycopg2://u:p@h:5432/db"
+    assert url_base_de_datos("postgres://u:p@h/db") == "postgresql+psycopg2://u:p@h/db"
+    assert url_base_de_datos("postgresql+psycopg2://u@h/db") == "postgresql+psycopg2://u@h/db"
+    assert url_base_de_datos("sqlite:///dev.db") == "sqlite:///dev.db"
+    assert url_base_de_datos(None) is None
+
+
+def test_create_engine_postgres_no_requiere_psycopg3():
+    import sqlalchemy
+
+    from app.config import url_base_de_datos
+
+    motor = sqlalchemy.create_engine(url_base_de_datos("postgresql://u:p@localhost:5432/db"))
+    assert motor.dialect.driver == "psycopg2"
